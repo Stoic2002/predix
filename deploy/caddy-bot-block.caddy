@@ -1,0 +1,17 @@
+
+# Dashboard crypto-bot (read-only, Streamlit di 127.0.0.1:8502), dilindungi password.
+# Login diatur lewat ~/crypto-bot/deploy/set-dashboard-password.sh. Ditambahkan 2026-10-12.
+bot.example.com {   # ganti dengan subdomain dashboard kamu (Cloudflare proxied)
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	import /etc/caddy/crypto-bot-auth.caddy
+	reverse_proxy 127.0.0.1:8502
+}

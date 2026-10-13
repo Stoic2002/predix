@@ -1,0 +1,8 @@
+ccxt==4.5.85
+pandas==3.0.6
+numpy==2.5.4
+pyyaml==6.0.3
+pytest==9.1.1
+matplotlib==3.11.2
+streamlit==1.65.0
+yfinance==1.7.0

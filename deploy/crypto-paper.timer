@@ -1,0 +1,13 @@
+[Unit]
+Description=Jadwal bot paper trading: tiap 4 jam (UTC, tidak bergantung zona waktu server)
+
+[Timer]
+# 00:05, 04:05, 08:05, 12:05, 16:05, 20:05 UTC = 5 menit setelah tiap candle 4 jam tutup.
+# Robot harian hanya memproses candle baru di run 00:05 (run lain tidak melakukan apa-apa, dan sekaligus
+# menjadi cadangan kalau run 00:05 gagal). Robot 4 jam memproses tiap run.
+OnCalendar=*-*-* 00/4:05:00 UTC
+Persistent=true
+Unit=crypto-paper.service
+
+[Install]
+WantedBy=timers.target

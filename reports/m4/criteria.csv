@@ -1,0 +1,11 @@
+strategy,kriteria,ambang,hasil,lolos
+s1,Profit factor OOS setelah biaya,> 1.2,0.88,False
+s1,Max drawdown OOS,< 30%,2.7%,True
+s1,Jumlah trade IS + OOS,>= 100,166,True
+s1,Sensitivitas: tidak ada varian rugi (IS),0 varian rugi,"13/13 rugi: default, sma_period=150, sma_period=250, rsi_entry=5, rsi_entry=15, rsi_exit=60, rsi_exit=80, atr_mult=2.25, atr_mult=3.75, atr_period=10, atr_period=18, max_hold_days=7, max_hold_days=13",False
+s1,Walk-forward: mayoritas jendela profit,> 50%,4/10 (40%),False
+s2,Profit factor OOS setelah biaya,> 1.2,1.56,True
+s2,Max drawdown OOS,< 30%,4.7%,True
+s2,Jumlah trade IS + OOS,>= 100,60,False
+s2,Sensitivitas: tidak ada varian rugi (IS),0 varian rugi,0/9 rugi,True
+s2,Walk-forward: mayoritas jendela profit,> 50%,6/10 (60%),True

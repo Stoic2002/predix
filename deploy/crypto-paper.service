@@ -1,0 +1,13 @@
+[Unit]
+Description=Predix: semua robot paper trading dry-run (harian + 4 jam), berurutan, sekali jalan
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/crypto-bot
+ExecStart=/home/ubuntu/crypto-bot/.venv/bin/python -m src.paper --all
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=15min

@@ -1,0 +1,31 @@
+{
+  "t1_donchian_ls": {
+    "run_at": "2026-10-12 07:20 UTC",
+    "forced": false,
+    "candidate_hash": "cc94316fa734311d",
+    "migrated_from_research_hash": "257e7616836a3c2a"
+  },
+  "t2_chandelier_ls": {
+    "run_at": "2026-10-12 07:20 UTC",
+    "forced": false,
+    "candidate_hash": "b187442ef47fb8aa",
+    "migrated_from_research_hash": "257e7616836a3c2a"
+  },
+  "t3_tsmom_ls": {
+    "run_at": "2026-10-12 07:20 UTC",
+    "forced": false,
+    "candidate_hash": "8da44fe7596b58d1",
+    "migrated_from_research_hash": "257e7616836a3c2a"
+  },
+  "t3_tsmom_lo": {
+    "run_at": "2026-10-12 07:20 UTC",
+    "forced": false,
+    "candidate_hash": "1cc2e9ceceac4310",
+    "migrated_from_research_hash": "257e7616836a3c2a"
+  },
+  "e1_trend_ensemble_ls": {
+    "candidate_hash": "36a06839bd74d80b",
+    "run_at": "2026-10-12 08:27 UTC",
+    "forced": false
+  }
+}

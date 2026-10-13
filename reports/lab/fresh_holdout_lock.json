@@ -1,0 +1,17 @@
+{
+  "e1_trend_ensemble_ls": {
+    "candidate_hash": "36a06839bd74d80b",
+    "fresh_hash": "9d7d2068b406f610",
+    "run_at": "2026-10-12 08:27 UTC"
+  },
+  "t1_donchian_ls": {
+    "candidate_hash": "cc94316fa734311d",
+    "fresh_hash": "10c8ca7095adc469",
+    "run_at": "2026-10-12 08:29 UTC"
+  },
+  "t3_tsmom_lo": {
+    "candidate_hash": "1cc2e9ceceac4310",
+    "fresh_hash": "c950f9df0f842fdc",
+    "run_at": "2026-10-12 08:29 UTC"
+  }
+}

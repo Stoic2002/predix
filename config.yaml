@@ -1,0 +1,231 @@
+# Semua angka default di sini adalah hipotesis awal dari PRD, bukan hasil optimasi.
+# Bagian lain (biaya, risiko, strategi, validasi) ditambahkan di milestone berikutnya.
+
+data:
+  exchange: binanceusdm        # sumber utama: endpoint publik, tanpa API key
+  fallback_exchange: bybit     # dipakai hanya kalau sumber utama menolak (mis. HTTP 451)
+  symbols:
+    - BTC/USDT:USDT
+    - ETH/USDT:USDT
+  timeframe: 1d                # candle tutup 00:00 UTC
+  start: "2020-01-01"
+  dir: data
+
+periods:
+  in_sample: ["2020-01-01", "2023-12-31"]
+  out_of_sample_start: "2024-01-01"
+
+backtest:
+  initial_equity: 10000
+
+costs:                         # nilai awal, verifikasi ke tarif exchange aktual
+  fee_taker: 0.0005            # 0,05% per sisi
+  slippage: 0.0005             # 0,05% per sisi, berlaku juga untuk fill stop
+
+risk:
+  risk_per_trade: 0.01         # 1% ekuitas; di portofolio dibagi rata antar sleeve
+  max_leverage_per_position: 2.0
+  max_total_notional: 3.0      # × ekuitas, semua posisi terbuka
+  isolated_leverage: 3.0       # leverage yang diset di exchange (margin = notional / 3)
+  maintenance_margin_rate: 0.005
+  liq_buffer: 1.5              # jarak likuidasi minimal 1,5 × jarak stop, kalau tidak trade ditolak
+  drawdown_marks: [0.20, 0.30] # dicatat di laporan untuk aturan kill switch fase 2
+
+s1:                            # mean reversion: RSI(2) dengan filter tren SMA(200)
+  allow_short: true            # pertanyaan terbuka di PRD; hasil long/short dilaporkan terpisah
+  sma_period: 200
+  rsi_period: 2
+  rsi_entry_long: 10
+  rsi_entry_short: 90
+  rsi_exit_long: 70
+  rsi_exit_short: 30
+  atr_period: 14
+  atr_mult: 3.0
+  max_hold_days: 10
+
+s2:                            # trend following: Donchian breakout
+  allow_short: true
+  entry_period: 55
+  exit_period: 20
+  atr_period: 14
+  atr_mult: 3.0
+
+validation:
+  criteria:                    # usulan PRD, bisa diubah SEBELUM out-of-sample dijalankan
+    oos_profit_factor_min: 1.2
+    oos_max_drawdown_max: 0.30
+    min_trades_total: 100      # per strategi, in-sample + out-of-sample
+    walk_forward_min_profitable_frac: 0.5  # "mayoritas" = lebih dari 50% jendela
+  walk_forward:
+    train_years: 2             # parameter tidak disetel; jendela latih hanya menentukan awal uji
+    test_months: 6
+  sensitivity:                 # satu parameter diubah per run, hanya di in-sample
+    s1:
+      sma_period: [150, 250]
+      rsi_entry: [5, 15]       # long = x, short = 100 - x
+      rsi_exit: [60, 80]       # long = x, short = 100 - x
+      atr_mult: [2.25, 3.75]
+      atr_period: [10, 18]
+      max_hold_days: [7, 13]
+    s2:
+      entry_period: [40, 70]
+      exit_period: [15, 25]
+      atr_mult: [2.25, 3.75]
+      atr_period: [10, 18]
+  monte_carlo:
+    n: 1000
+    seed: 42
+
+research:                      # Fase 2: lab riset. Bagian ini TIDAK ikut hash kunci OOS Fase 1.
+  universe:                    # likuid, perpetual Binance sejak 2020; bias survivorship: koin yang mati tidak ikut
+    - BTC/USDT:USDT
+    - ETH/USDT:USDT
+    - SOL/USDT:USDT
+    - XRP/USDT:USDT
+    - BNB/USDT:USDT
+    - DOGE/USDT:USDT
+    - ADA/USDT:USDT
+    - LINK/USDT:USDT
+    - AVAX/USDT:USDT
+    - LTC/USDT:USDT
+
+  # ---- Pra-registrasi (ditulis 2026-10-12 SEBELUM hasil apa pun dilihat). Mengubah bagian di bawah
+  # setelah melihat hasil = percobaan baru; lab mencatatnya di log riset, tidak menimpa yang lama.
+  periods:
+    selection: ["2020-01-01", "2023-12-31"]   # pemilihan kandidat hanya dari periode ini
+    holdout_start: "2024-01-01"               # dijalankan sekali per kandidat yang lolos seleksi
+  risk_per_trade: 0.01         # dibagi rata antar simbol: 10 simbol -> 0,1% per trade per simbol
+  modes: [long_short, long_only]   # tiap kandidat diuji dua mode; masing-masing dihitung sebagai percobaan
+  criteria:
+    selection:
+      profit_factor_min: 1.2           # portofolio 10 simbol, setelah biaya
+      min_trades: 100                  # total di 10 simbol
+      profitable_symbols_frac_min: 0.6 # run per simbol yang profit bersih, minimal 6 dari 10
+      sensitivity_no_loss: true        # tidak ada varian ±25% yang rugi
+      rolling_window_months: 6         # jendela bergulir mulai 2021 (2020 = pemanasan indikator)
+      rolling_profitable_frac_min: 0.5 # lebih dari separuh jendela profit
+    holdout:
+      profit_factor_min: 1.2
+      max_drawdown_max: 0.30
+  # ---- Ujian akhir koin segar (ditulis 2026-10-12, sebelum harga koin-koin ini dilihat).
+  # 10 koin likuid yang listing <= 2020 dan belum pernah dipakai riset; RLC, RSR, BAT dikeluarkan karena
+  # kapitalisasi kecil. Dijalankan SEKALI per kandidat, periode penuh 2020 s/d data terakhir.
+  fresh_holdout:
+    universe:
+      - ZEC/USDT:USDT
+      - NEAR/USDT:USDT
+      - FIL/USDT:USDT
+      - UNI/USDT:USDT
+      - AAVE/USDT:USDT
+      - BCH/USDT:USDT
+      - ATOM/USDT:USDT
+      - XLM/USDT:USDT
+      - DOT/USDT:USDT
+      - ALGO/USDT:USDT
+    criteria:
+      profit_factor_min: 1.2
+      max_drawdown_max: 0.30
+      profitable_symbols_frac_min: 0.5
+  candidates:
+    t1_donchian:               # S2 Fase 1, sekarang di 10 simbol
+      strategy: donchian
+      params: {entry_period: 55, exit_period: 20, atr_period: 14, atr_mult: 3.0}
+      sensitivity: {entry_period: [40, 70], exit_period: [15, 25], atr_mult: [2.25, 3.75]}
+    t2_chandelier:             # breakout + trailing exit
+      strategy: chandelier
+      params: {entry_period: 55, chandelier_period: 22, chandelier_mult: 3.0, atr_period: 14, atr_mult: 3.0}
+      sensitivity: {entry_period: [40, 70], chandelier_period: [16, 28], chandelier_mult: [2.25, 3.75]}
+    t3_tsmom:                  # time-series momentum
+      strategy: tsmom
+      params: {lookback: 60, atr_period: 14, atr_mult: 3.0}
+      sensitivity: {lookback: [45, 75], atr_mult: [2.25, 3.75]}
+    t4_ma_cross:               # SMA cepat/lambat
+      strategy: ma_cross
+      params: {fast: 20, slow: 100, atr_period: 14, atr_mult: 3.0}
+      sensitivity: {fast: [15, 25], slow: [75, 125], atr_mult: [2.25, 3.75]}
+
+    # ---- Putaran 2 (ditulis 2026-10-12 SEBELUM hasilnya dilihat): metode di luar trend per koin.
+    x1_xsmom:                  # momentum lintas koin, rebalance mingguan
+      strategy: xsmom
+      params: {lookback: 28, top_k: 3, rebalance_weekday: 6, atr_period: 14, atr_mult: 3.0}
+      sensitivity: {lookback: [21, 35], top_k: [2, 4]}
+    f1_funding_contra:         # lawan kerumunan saat funding ekstrem
+      strategy: funding_contra
+      params: {avg_days: 7, window: 365, min_window: 180, tail: 0.10, max_hold_days: 14, atr_period: 14, atr_mult: 3.0}
+      sensitivity: {avg_days: [5, 9], tail: [0.075, 0.125], max_hold_days: [10, 18]}
+
+    # ---- Putaran 3 (ditulis 2026-10-12 SEBELUM hasilnya dilihat), dari pencarian literatur:
+    # ensemble trend (Catching Crypto Trends, Man AHL) dan momentum lintas koin 2 minggu (Borri dkk. 2025).
+    e1_trend_ensemble:
+      strategy: trend_ensemble
+      params: {base_lookback: 20, n_models: 4, entry_score: 0.5, atr_period: 14, atr_mult: 3.0}
+      sensitivity: {base_lookback: [15, 25], entry_score: [0.25, 0.75], atr_mult: [2.25, 3.75]}
+    x2_xsmom_2w:               # sama dengan x1 tapi lookback 14 hari (x1 = 28 hari, gagal)
+      strategy: xsmom
+      params: {lookback: 14, top_k: 3, rebalance_weekday: 6, atr_period: 14, atr_mult: 3.0}
+      sensitivity: {lookback: [10, 18], top_k: [2, 4]}
+
+paper:                         # Fase 2 A1: paper trading S2, mode dry-run (tanpa exchange)
+  mode: dry_run                # dry_run = fill disimulasikan dari data publik; testnet menyusul di A2
+  strategy: s2                 # memakai parameter di bagian s2
+  symbols:
+    - BTC/USDT:USDT
+    - ETH/USDT:USDT
+  start: "2026-10-12"          # candle pertama yang diproses; mulai tanpa posisi
+  initial_equity: 10000        # virtual
+  db: state/paper_s2.db
+  kill_switch:
+    warn_drawdown: 0.20        # peringatan saja
+    halt_drawdown: 0.30        # stop entry baru sampai di-reset manual (--reset-kill-switch)
+
+paper_tsmom:                   # Fase 2: bot paper kedua, kandidat lab t3_tsmom_lo (lolos seleksi + holdout)
+  mode: dry_run
+  strategy: tsmom              # fungsi di src/strategies/registry.py
+  params: {lookback: 60, atr_period: 14, atr_mult: 3.0, allow_short: false}   # = t3_tsmom_lo, tidak diubah
+  symbols:
+    - BTC/USDT:USDT
+    - ETH/USDT:USDT
+    - SOL/USDT:USDT
+    - XRP/USDT:USDT
+    - BNB/USDT:USDT
+    - DOGE/USDT:USDT
+    - ADA/USDT:USDT
+    - LINK/USDT:USDT
+    - AVAX/USDT:USDT
+    - LTC/USDT:USDT
+  start: "2026-10-12"          # sama dengan bot S2; mulai tanpa posisi
+  initial_equity: 10000        # virtual
+  risk_per_trade: 0.01         # dibagi 10 simbol -> 0,1% per trade, sama dengan lab
+  db: state/paper_tsmom.db
+  kill_switch:
+    warn_drawdown: 0.20
+    halt_drawdown: 0.30
+
+paper_h4:                      # Robot 3 (eksperimen): aturan Robot 1 di candle 4 jam. Lolos uji 4 jam 2026-10-13,
+                               # tapi rapuh terhadap biaya (PF 2024+ turun ke 1,17 bila biaya 2x).
+  mode: dry_run
+  strategy: donchian
+  timeframe: 4h
+  params: {entry_period: 55, exit_period: 20, atr_period: 14, atr_mult: 3.0, allow_short: true}
+  symbols:
+    - BTC/USDT:USDT
+    - ETH/USDT:USDT
+  start: "2026-10-13 12:00"     # candle 4 jam pertama setelah dipasang; mulai tanpa posisi
+  initial_equity: 10000
+  db: state/paper_h4.db
+  kill_switch:
+    warn_drawdown: 0.20
+    halt_drawdown: 0.30
+
+display:                       # nama tampilan saja; TIDAK memengaruhi robot (kunci setting robot tetap)
+  app_name: Predix
+  robots:
+    paper:
+      name: "Robot 1 · Breakout"
+      about: "Beli saat harga menembus titik tertinggi 55 hari, jual saat turun ke titik terendah 20 hari. Bisa juga short (untung saat harga turun)."
+    paper_h4:
+      name: "Robot 3 · Breakout 4 jam"
+      about: "Aturan Robot 1 di grafik 4 jam: lebih cepat, lebih sering trading, bekerja tiap 4 jam. Eksperimen."
+    paper_tsmom:
+      name: "Robot 2 · Momentum"
+      about: "Pegang koin yang harganya lebih tinggi daripada 60 hari lalu, jual kalau sudah lebih rendah. Hanya beli, tidak pernah short."

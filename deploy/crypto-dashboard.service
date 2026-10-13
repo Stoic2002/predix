@@ -1,0 +1,15 @@
+[Unit]
+Description=Crypto bot: dashboard Streamlit (hanya localhost; akses lewat tunnel SSH)
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/crypto-bot
+ExecStart=/home/ubuntu/crypto-bot/.venv/bin/streamlit run app.py --server.address 127.0.0.1 --server.port 8502 --server.headless true --browser.gatherUsageStats false
+Restart=on-failure
+RestartSec=30
+Nice=10
+MemoryMax=600M
+
+[Install]
+WantedBy=multi-user.target
