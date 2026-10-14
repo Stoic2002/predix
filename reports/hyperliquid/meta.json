@@ -1,0 +1,6 @@
+{
+  "leaderboard_accounts": 47269,
+  "candidates": 200,
+  "consistent": 36,
+  "rules": " (ditetapkan 2026-10-14 sebelum melihat trader mana pun):\n  1. Kandidat: 200 akun dengan PnL perp sepanjang masa terbesar di leaderboard publik, modal >= $100k.\n  2. Konsisten: dari riwayat PnL perp (portfolio \"perpAllTime\"), untung di >= 60% bulan, riwayat >= 6 bulan.\n     Diambil sampai 40 akun paling konsisten.\n  3. Analisis sampai 10.000 fill terakhir per akun (batas API): lama memegang posisi, frekuensi, winrate,\n     profit factor, long/short, koin, pemakaian taker (market) vs maker (limit), leverage saat ini.\n  4. Privasi: alamat hanya disimpan di data/hyperliquid/ (tidak diunggah). Laporan memakai nama samaran.\n"
+}
