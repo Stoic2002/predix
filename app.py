@@ -588,7 +588,7 @@ def _exchange():
     return ex
 
 
-@st.cache_data(ttl=55, show_spinner=False)
+@st.cache_data(ttl=10, show_spinner=False)
 def _live_candles(symbols: tuple, candle_iso: str, timeframe: str) -> tuple[dict, str]:
     t = pd.Timestamp(candle_iso)
     return live.fetch_candles(_exchange(), list(symbols), t, timeframe), pd.Timestamp.now(tz="UTC").isoformat()
@@ -613,7 +613,10 @@ def _pos_table(positions: list[dict]):
             .map(color, subset=["Untung/rugi", "%"]))
 
 
-@st.fragment(run_every=60)
+LIVE_REFRESH_SECONDS = 15
+
+
+@st.fragment(run_every=LIVE_REFRESH_SECONDS)
 def live_panel(cfg_now: dict) -> None:
     sections = [s for s in robot_sections(cfg_now) if live.next_candle(cfg_now, s) is not None]
     st.subheader("🔴 Live")
@@ -644,7 +647,9 @@ def live_panel(cfg_now: dict) -> None:
     if fetched_at is None:
         st.caption("Belum ada robot yang candle-nya sedang berjalan.")
     else:
-        st.caption(f"**Perkiraan sementara**, harga Binance per {tanggal(fetched_at, True)}, diperbarui tiap menit. "
+        jam = pd.Timestamp(fetched_at).tz_convert("Asia/Jakarta").strftime("%H:%M:%S")
+        st.caption(f"🔄 Otomatis tiap {LIVE_REFRESH_SECONDS} detik · harga Binance pukul **{jam} WIB**. "
+                   "**Perkiraan sementara**. "
                    "Dihitung dengan mesin yang sama dengan robot pada candle yang sedang berjalan; angka resmi "
                    "dicatat saat candle itu selesai (robot harian: besok 07:05 WIB; robot 4 jam: 5 menit setelah "
                    "candle 4 jam tutup).")

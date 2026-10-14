@@ -63,3 +63,15 @@ def test_portfolio_splits_risk_equally():
     res = run_backtest({"X": bars}, {"X": no_funding()}, sleeves, BacktestConfig(fee_taker=0, slippage=0))
     assert res.risk_per_trade == pytest.approx(0.0025)
     assert res.trades.risk_amount.tolist() == pytest.approx([25.0] * 4)
+
+
+def test_min_notional_rejects_too_small_orders():
+    """Posisi yang nilainya di bawah minimal order exchange tidak dibuka, dan alasannya dicatat."""
+    bars = flat_bars(6)
+    sig = make_signals(bars.index, {0: 1}, stop_dist=5.0)
+    small = BacktestConfig(initial_equity=300, min_notional={"X": 100.0})   # posisi = 300*1%/5*100 = 60
+    res = run_backtest({"X": bars}, {"X": no_funding()}, [Sleeve("a", "X", sig)], small)
+    assert res.trades.empty and "minimal order" in res.rejections.iloc[0].reason
+    ok = BacktestConfig(initial_equity=300, min_notional={"X": 50.0})
+    res = run_backtest({"X": bars}, {"X": no_funding()}, [Sleeve("a", "X", sig)], ok)
+    assert len(res.trades) == 1

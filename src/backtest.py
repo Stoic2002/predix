@@ -52,12 +52,14 @@ class BacktestConfig:
     isolated_leverage: float = 3.0
     maintenance_margin_rate: float = 0.005
     liq_buffer: float = 1.5
+    # Minimal nilai order per simbol (mis. aturan exchange). None = tidak ada batas (default robot paper).
+    min_notional: dict | None = None
 
     @classmethod
     def from_config(cls, cfg: dict) -> BacktestConfig:
         """Ambil nilai dari bagian backtest/costs/risk di config.yaml."""
         flat = {**cfg.get("backtest", {}), **cfg.get("costs", {}), **cfg.get("risk", {})}
-        names = {f.name for f in fields(cls)}
+        names = {f.name for f in fields(cls)} - {"min_notional"}
         return cls(**{k: float(v) for k, v in flat.items() if k in names})
 
 
@@ -240,6 +242,9 @@ class Engine:
                 isolated_leverage=cfg.isolated_leverage,
                 maintenance_margin_rate=cfg.maintenance_margin_rate, liq_buffer=cfg.liq_buffer,
             )
+            if not res.rejected and cfg.min_notional and res.notional < cfg.min_notional.get(s.symbol, 0.0):
+                res = sizing.SizeResult(liq_price=res.liq_price, rejected=(
+                    f"di bawah minimal order: {res.notional:.2f} < {cfg.min_notional[s.symbol]:.2f}"))
             if res.rejected:
                 self.rejections.append({**reject, "liq_price": res.liq_price, "reason": res.rejected})
                 continue
