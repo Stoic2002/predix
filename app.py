@@ -372,6 +372,7 @@ def page_lab() -> None:
         if (LAB_DIR / "fresh_holdout.csv").exists():
             st.markdown("**Ujian koin segar** (10 koin yang tidak pernah dipakai riset, 2020 s/d sekarang, sekali per kandidat)")
             st.dataframe(pd.read_csv(LAB_DIR / "fresh_holdout.csv"), hide_index=True, width="stretch")
+        hl_section()
         with st.expander("Log riset (semua percobaan)"):
             st.dataframe(pd.read_csv(LAB_DIR / "research_log.csv"), hide_index=True, width="stretch")
 
@@ -577,6 +578,64 @@ def page_phase1() -> None:
                     st.success("Validasi OK: tidak ada candle hilang, high/low konsisten, tidak ada nilai ≤ 0.")
                 for msg in info:
                     st.caption(msg)
+
+
+HL_DIR = ROOT / "reports" / "hyperliquid"
+
+
+def hl_section() -> None:
+    """Ringkasan riset trader top Hyperliquid (data on-chain publik, nama samaran)."""
+    if not (HL_DIR / "traders.csv").exists():
+        return
+    st.divider()
+    st.subheader("Riset: trader top Hyperliquid")
+    meta = json.loads((HL_DIR / "meta.json").read_text())
+    d = pd.read_csv(HL_DIR / "traders.csv")
+    st.caption("Data on-chain publik bursa Hyperliquid, diambil 14 Okt 2026. Wallet anonim; laporan memakai nama samaran. "
+               "Keterbatasan: hanya pemenang yang terlihat (akun yang habis tidak ada di leaderboard), data transaksi "
+               "terbatas 10.000 terakhir per akun, dan kita melihat apa yang dilakukan, bukan kenapa.")
+    k = st.columns(4)
+    k[0].metric("Akun di leaderboard", f"{meta['leaderboard_accounts']:,}".replace(",", "."))
+    k[1].metric("200 profit terbesar (modal ≥ $100rb)", meta["candidates"])
+    k[2].metric(f"Konsisten ({meta['consistent'] / meta['candidates']:.0%} dari 200)", meta["consistent"],
+                help="Untung di minimal 60% bulan, riwayat minimal 6 bulan.")
+    k[3].metric("Dianalisis", len(d))
+    g = (d.groupby("style").agg(jumlah=("trader", "count"), transaksi_per_hari=("fills_per_day", "median"),
+                               market_order=("taker_share", "median"), lama_pegang_jam=("hold_median_h", "median"),
+                               winrate=("winrate", "median"), profit_factor=("profit_factor", "median"),
+                               leverage_sekarang=("exposure_now", "median"))
+         .sort_values("jumlah", ascending=False).reset_index())
+    num = st.column_config.NumberColumn
+    st.markdown("**Gaya trading pemenang konsisten**")
+    st.dataframe(g, hide_index=True, width="stretch", column_config={
+        "style": "Gaya", "jumlah": "Jumlah", "transaksi_per_hari": num("Transaksi/hari", format="%.0f"),
+        "market_order": num("Porsi market order", format="percent"),
+        "lama_pegang_jam": num("Lama pegang (jam, median)", format="%.1f"),
+        "winrate": num("Winrate", format="percent"), "profit_factor": num("Profit factor", format="%.2f"),
+        "leverage_sekarang": num("Eksposur saat ini (× modal)", format="%.1f")})
+    hft = d["style"].str.contains("HFT|market maker").sum()
+    direc = d[d["style"].str.startswith(("intraday", "swing", "posisi ("))]
+    st.markdown(
+        f"- **{hft} dari {len(d)} ({hft / len(d):.0%}) adalah HFT/market maker**: ribuan transaksi per hari, keunggulan dari "
+        "kecepatan, fee super rendah, dan modal besar. Tidak bisa ditiru dengan VPS biasa.\n"
+        f"- **Trader directional ({len(direc)} akun) mirip robot kita**: winrate median "
+        f"{direc['winrate'].median():.0%}, untung rata-rata sekitar {direc['win_loss_ratio'].median():.1f}× rugi rata-rata. "
+        "Lebih sering rugi kecil, menang dari sedikit trade besar.\n"
+        f"- **Spesialis**: 3 koin teratas mencakup median {d['top3_share'].median():.0%} volume mereka "
+        "(banyak di HYPE dan pasar khusus Hyperliquid).\n"
+        f"- **Leverage cukup tinggi** (median eksposur {d['exposure_now'].median():.1f}× modal), tapi ini hanya yang selamat; "
+        "akun ber-leverage tinggi yang habis tidak terlihat.\n"
+        "- **Pemenang pun punya periode buruk**: beberapa trader swing/intraday rugi di jendela data terakhirnya "
+        "walau profit sepanjang masanya puluhan juta dolar.")
+    with st.expander("Trader directional (intraday, swing, posisi)"):
+        st.dataframe(direc[["trader", "style", "hold_median_h", "episodes", "winrate", "profit_factor", "win_loss_ratio",
+                            "long_share", "top_coin", "top3_share", "exposure_now", "profitable_months"]],
+                     hide_index=True, width="stretch", column_config={
+                         "hold_median_h": num("Lama pegang (jam)", format="%.1f"), "winrate": num("Winrate", format="percent"),
+                         "profit_factor": num("PF", format="%.2f"), "win_loss_ratio": num("Untung/rugi rata-rata", format="%.1f"),
+                         "long_share": num("Porsi long", format="percent"), "top3_share": num("Porsi 3 koin teratas", format="percent"),
+                         "exposure_now": num("Eksposur (×)", format="%.1f"),
+                         "profitable_months": num("Bulan untung", format="percent")})
 
 
 # ---------------------------------------------------------------- Live (perkiraan sementara)
