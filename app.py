@@ -21,7 +21,7 @@ import streamlit as st
 from src import metrics
 from src.data import describe_funding, load_bars, load_config, load_funding, read_meta, validate_ohlcv
 from src.report import COLORS, LABELS, NAMES, ROOT, chained_equity, fmt, read_notes
-from src import live
+from src import evaluation, live
 from src.run import asset
 import calendar
 from datetime import date
@@ -746,6 +746,100 @@ def live_panel(cfg_now: dict) -> None:
                 st.caption(f"⚪ Beli {koin} dibatalkan: {why}.")
 
 
+# ---------------------------------------------------------------- Radar & evaluasi
+
+@st.cache_data(ttl=6 * 3600, show_spinner="Menghitung pembanding backtest...")
+def _reference(section: str, settings: str) -> dict:  # settings = hash setting robot, kunci cache
+    return evaluation.reference(load_config(), section)
+
+
+def _radar_prices(cfg_now: dict, sections: list[str]) -> dict[str, float]:
+    """Harga live dari candle yang sedang berjalan (cache sama dengan panel live); kosong kalau gagal."""
+    prices: dict[str, float] = {}
+    for sec in sections:
+        t = live.next_candle(cfg_now, sec)
+        if t is None or t > pd.Timestamp.now(tz="UTC"):
+            continue
+        try:
+            candles, _ = _live_candles(tuple(sorted(cfg_now[sec]["symbols"])), t.isoformat(), bot_timeframe(cfg_now, sec))
+        except Exception:  # noqa: BLE001  pakai close terakhir
+            continue
+        prices.update({f"{sec}|{sym}": c[3] for sym, c in candles.items()})
+    return prices
+
+
+def _pct(v) -> str:
+    return "-" if v is None or pd.isna(v) else ("+" if v > 0 else "") + angka(v * 100, 1) + "%"
+
+
+@st.fragment(run_every=LIVE_REFRESH_SECONDS)
+def radar_panel(cfg_now: dict) -> None:
+    st.subheader("📡 Radar sinyal")
+    st.caption("Seberapa jauh harga sekarang dari pemicu berikutnya. Pemicu dicek saat candle **tutup** "
+               "(robot harian 07:00 WIB, Robot 3 tiap 4 jam); stop loss bisa kena kapan saja. "
+               "Level dihitung dengan rumus yang sama dengan robot dan bisa bergeser tiap candle.")
+    sections = robot_sections(cfg_now)
+    prices = _radar_prices(cfg_now, sections)
+    for tab, sec in zip(st.tabs([display_name(cfg_now, s)[0] for s in sections]), sections):
+        with tab:
+            try:
+                p = {k.split("|", 1)[1]: v for k, v in prices.items() if k.startswith(sec + "|")}
+                df = evaluation.radar(cfg_now, sec, p)
+            except Exception as e:  # noqa: BLE001
+                st.info(f"Radar belum tersedia untuk robot ini ({e}).")
+                continue
+            strat, params = evaluation.radar_strategy(cfg_now, sec)
+            st.caption(f"Aturan: {evaluation.rule_text(strat, params)}. "
+                       f"Harga: {'live' if p else 'close terakhir'}.")
+            near = df[df["jarak"].abs() < 0.02]
+            if len(near):
+                st.warning("Dekat pemicu (< 2%): " + ", ".join(f"{r.koin} ({r['aksi berikutnya']})"
+                                                             for _, r in near.iterrows()))
+            fmt_px = lambda v: "-" if v is None or pd.isna(v) else angka(v, 2 if v >= 1 else 4)  # noqa: E731
+            show = pd.DataFrame({
+                "Koin": df["koin"], "Status": df["status"], "Pemicu berikutnya": df["aksi berikutnya"],
+                "Level": df["level"].map(fmt_px), "Harga": df["harga"].map(fmt_px), "Jarak": df["jarak"].map(_pct),
+                "Stop loss": df["stop loss"].map(fmt_px),
+                "Jarak ke stop": [(_pct(s / h - 1) if s is not None and not pd.isna(s) else "-")
+                                  for s, h in zip(df["stop loss"], df["harga"])],
+                "Catatan": df["catatan"]})
+            st.dataframe(show, hide_index=True, width="stretch")
+
+
+def evaluation_panel(cfg_now: dict) -> None:
+    from src.paper import settings_hash
+    ev_cfg = cfg_now.get("evaluation")
+    if not ev_cfg:
+        return
+    st.subheader("📊 Evaluasi vs backtest")
+    st.caption(f"Apakah hasil paper masih wajar dibanding uji historis robot yang sama "
+               f"({tanggal(pd.Timestamp(ev_cfg['reference_start']))} sampai sehari sebelum robot mulai). "
+               f"Aturan penilaian ditetapkan 14 Okt 2026 sebelum ada hasil, dan putusan akhir keluar setelah "
+               f"{ev_cfg['verdict_after_days']} hari. 🟢 wajar · 🟡 waspada · 🔴 di luar batas · ⏳ belum cukup data.")
+    sections = robot_sections(cfg_now)
+    for col, sec in zip(st.columns(len(sections)), sections):
+        with col, st.container(border=True):
+            st.markdown(f"**{display_name(cfg_now, sec)[0]}**")
+            try:
+                ref = _reference(sec, settings_hash(cfg_now, sec))
+                e = evaluation.evaluate(cfg_now, sec, ref)
+            except Exception as ex:  # noqa: BLE001
+                st.info(f"Evaluasi belum tersedia ({type(ex).__name__}: {ex}).")
+                continue
+            text, status = e["verdict"]
+            {"ok": st.success, "warn": st.warning, "fail": st.error}.get(status, st.info)(
+                f"{evaluation.ICON[status]} {text}")
+            st.markdown("\n".join(f"- {evaluation.ICON[c['status']]} **{c['aspek']}**: {c['nilai']}  \n"
+                                   f"  <small>{c['patokan']}{'. ' + c['keterangan'] if c['keterangan'] else ''}</small>"
+                                   for c in e["checks"]), unsafe_allow_html=True)
+            r = e["ref"]
+            idle = angka(e["idle_days"], 0 if e["idle_days"] >= 10 else 1)
+            since = "transaksi terakhir" if e["has_fill"] else "mulai, belum pernah transaksi"
+            st.caption(f"⏱️ Sudah {idle} hari sejak {since}. Di backtest, jarak antar entry biasanya "
+                       f"{angka(r['median_gap_days'], 0 if r['median_gap_days'] >= 10 else 1)} hari dan robot pernah "
+                       f"tanpa posisi sama sekali selama {angka(r['longest_idle_days'], 0)} hari, jadi diam lama itu normal.")
+
+
 # ---------------------------------------------------------------- Beranda
 
 STATUS_BOX = {"ok": st.success, "wait": st.info, "late": st.warning, "error": st.error}
@@ -757,6 +851,7 @@ def page_home() -> None:
     st.caption("Robot trading yang berjalan otomatis di server: robot harian bekerja pukul **07:05 WIB**, "
                "Robot 3 setiap **4 jam**. Masih **simulasi**: uang virtual, tidak ada order sungguhan ke exchange.")
     live_panel(cfg_now)
+    radar_panel(cfg_now)
     st.subheader("Status robot")
     sections = robot_sections(cfg_now)
     for col, sec in zip(st.columns(len(sections)), sections):
@@ -785,6 +880,7 @@ def page_home() -> None:
             if s["notes"]:
                 st.warning(s["notes"])
 
+    evaluation_panel(cfg_now)
     with st.expander("Bagaimana robot ini bekerja?"):
         st.markdown(
             "- **Sekali sehari (Robot 1 & 2).** Binance menutup candle harian pukul 07:00 WIB. Pukul 07:05 robot "

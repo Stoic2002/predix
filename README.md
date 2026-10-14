@@ -91,8 +91,10 @@ streamlit run app.py
 Pages:
 
 - **Home:** each robot in plain language, plus a **Live** panel that re-runs the engine on the
-  current, unfinished candle every minute (an estimate; official numbers are recorded when the candle
-  closes).
+  current, unfinished candle every 15 seconds (an estimate; official numbers are recorded when the candle
+  closes). Below it, a **signal radar** shows how far each coin is from its next trigger (same formulas as
+  the strategies, covered by tests), and an **evaluation card** compares each robot's paper results with
+  its own backtest using rules fixed in `config.yaml` (`evaluation`) before any paper results existed.
 - **Calendar:** daily profit/loss per robot or combined, with monthly totals.
 - **Robot detail:** equity, positions, trades, fills and run log.
 - **Research lab** and **Phase 1 backtest** pages.
@@ -148,6 +150,7 @@ src/pre2020.py, metals.py, h4.py     one-shot extra tests
 src/paper.py             paper-trading robots (daily and 4h)
 src/live.py              live estimate on the unfinished candle
 src/summary.py           plain-language summaries, daily P&L, Telegram text
+src/evaluation.py        signal radar and paper-vs-backtest evaluation (dashboard, read-only)
 src/notify.py            Telegram reports
 app.py                   Streamlit dashboard
 deploy/                  systemd units, Caddy block, password script

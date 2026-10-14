@@ -229,3 +229,15 @@ display:                       # nama tampilan saja; TIDAK memengaruhi robot (ku
     paper_tsmom:
       name: "Robot 2 · Momentum"
       about: "Pegang koin yang harganya lebih tinggi daripada 60 hari lalu, jual kalau sudah lebih rendah. Hanya beli, tidak pernah short."
+
+evaluation:                    # ditetapkan 2026-10-14, sebelum ada hasil paper yang berarti. Tidak memengaruhi robot.
+  reference_start: "2024-01-01"  # pembanding = backtest robot yang sama dari tanggal ini s/d sehari sebelum robot mulai
+  verdict_after_days: 183        # putusan LOLOS/GAGAL setelah ~6 bulan
+  return_band_pct: [5, 95]       # return paper vs semua jendela backtest dengan panjang sama
+  drawdown_warn_x: 1.5           # drawdown paper vs drawdown backtest
+  drawdown_fail_x: 2.0
+  min_trades_for_pf: 10
+  pf_warn: 1.0
+  pf_fail: 0.8
+  min_days_for_frequency: 60
+  frequency_band_x: [0.5, 2.0]   # trade per bulan vs backtest
