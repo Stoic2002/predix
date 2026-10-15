@@ -13,9 +13,12 @@ from tests.helpers import funding_every_8h, random_bars
 CFG = load_config()
 
 
-def _world(n=500, seed=4):
+def _world(n=500, seed=4, freq="D"):
     syms = [f"S{i}" for i in range(8)]
     bars = {s: random_bars(n, seed=seed + i) for i, s in enumerate(syms)}
+    if freq != "D":  # strategi intraday: indeks candle 1 jam
+        idx = pd.date_range("2020-01-01", periods=n, freq=freq, tz="UTC", name="time")
+        bars = {s: b.set_axis(idx) for s, b in bars.items()}
     rng = np.random.default_rng(seed)
     funding = {s: funding_every_8h(b.index, 0.0001).assign(
         funding_rate=lambda f: rng.normal(0.0001, 0.0003, len(f))) for s, b in bars.items()}
@@ -27,7 +30,7 @@ def test_all_strategies_no_lookahead(name):
     """Mengubah harga DAN funding setelah t tidak mengubah sinyal sampai t (termasuk peringkat lintas koin)."""
     cand = CFG["research"]["candidates"][name]
     p = {**cand["params"], "allow_short": True}
-    syms, bars, funding = _world()
+    syms, bars, funding = _world(freq="h" if cand.get("timeframe", "1d") != "1d" else "D")
     t = 420
     cut = bars[syms[0]].index[t]
     bars2 = {s: b.copy() for s, b in bars.items()}
@@ -35,7 +38,7 @@ def test_all_strategies_no_lookahead(name):
     rng = np.random.default_rng(1)
     for s in syms:
         bars2[s].iloc[t + 1:, :4] *= rng.uniform(0.5, 1.5, (len(bars2[s]) - t - 1, 1))
-        later = fund2[s].index > cut + pd.Timedelta(days=1)  # event setelah candle t close
+        later = fund2[s].index > cut + (bars[s].index[1] - bars[s].index[0])  # event setelah candle t close
         fund2[s].loc[later, "funding_rate"] = rng.normal(0.01, 0.01, later.sum())
     a = signals_for(cand["strategy"], p, bars, funding, syms, syms)
     b = signals_for(cand["strategy"], p, bars2, fund2, syms, syms)

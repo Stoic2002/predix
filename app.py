@@ -372,6 +372,19 @@ def page_lab() -> None:
         if (LAB_DIR / "fresh_holdout.csv").exists():
             st.markdown("**Ujian koin segar** (10 koin yang tidak pernah dipakai riset, 2020 s/d sekarang, sekali per kandidat)")
             st.dataframe(pd.read_csv(LAB_DIR / "fresh_holdout.csv"), hide_index=True, width="stretch")
+        if (LAB_DIR / "intraday_costs_info.csv").exists():
+            st.markdown("**Intraday: biaya robot vs biaya paling optimistis** (informasi, bukan kriteria; periode seleksi)")
+            st.caption("Optimistis = fee maker Hyperliquid 0,015% dan tanpa slippage, lebih murah dari yang realistis "
+                       "(stop loss tetap butuh order market). Kalau ini pun di bawah PF 1,2, strategi tidak layak.")
+            ci = pd.read_csv(LAB_DIR / "intraday_costs_info.csv")
+            st.dataframe(ci, hide_index=True, width="stretch",
+                         column_config={"candidate": "Kandidat", "biaya": "Biaya",
+                                        "total_return": num("Return", format="percent"),
+                                        "profit_factor": num("PF", format="%.2f"),
+                                        "max_drawdown": num("Max DD", format="percent"), "n_trades": "Trade",
+                                        "winrate": num("Winrate", format="percent"),
+                                        "fees_and_slippage": num("Fee + slippage", format="%.0f"),
+                                        "gross_pnl": num("Untung kotor", format="%.0f")})
         hl_section()
         with st.expander("Log riset (semua percobaan)"):
             st.dataframe(pd.read_csv(LAB_DIR / "research_log.csv"), hide_index=True, width="stretch")

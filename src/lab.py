@@ -25,7 +25,8 @@ import yaml
 
 from src import metrics
 from src.backtest import BacktestConfig, BacktestResult, Sleeve, run_backtest
-from src.data import ROOT, load_bars, load_config, load_funding
+from src.data import ROOT, load_bars, load_config, load_funding, timeframe_ms
+from src.paper import PANDAS_FREQ
 from src.run import asset
 from src.strategies.registry import signals_for
 
@@ -65,6 +66,8 @@ def expand_candidates(cfg: dict) -> dict[str, dict]:
             key = f"{name}_{'ls' if mode == 'long_short' else 'lo'}"
             out[key] = {"strategy": c["strategy"], "mode": mode, "sensitivity": c.get("sensitivity", {}),
                         "params": {**c["params"], "allow_short": mode == "long_short"}}
+            if c.get("timeframe", "1d") != "1d":  # hanya kalau ada: kunci kandidat harian lama tidak berubah
+                out[key]["timeframe"] = c["timeframe"]
     return out
 
 
@@ -79,14 +82,38 @@ def lab_config(cfg: dict) -> BacktestConfig:
     return replace(BacktestConfig.from_config(cfg), risk_per_trade=float(cfg["research"]["risk_per_trade"]))
 
 
+_INTRADAY_BARS: dict[tuple[str, str], pd.DataFrame] = {}
+
+
+def intraday_bars(symbol: str, timeframe: str) -> pd.DataFrame:
+    key = (symbol, timeframe)
+    if key not in _INTRADAY_BARS:
+        _INTRADAY_BARS[key] = load_bars(symbol, timeframe=timeframe)
+    return _INTRADAY_BARS[key]
+
+
+def _period_end(end, timeframe: str):
+    """Tanggal akhir periode = sampai candle terakhir hari itu (untuk candle < 1 hari)."""
+    if end is None or timeframe == "1d":
+        return end
+    e = pd.Timestamp(end)
+    e = e.tz_localize("UTC") if e.tzinfo is None else e
+    return e + pd.Timedelta(days=1) - pd.Timedelta(milliseconds=timeframe_ms(timeframe)) if e == e.normalize() else e
+
+
 def run_candidate(cfg: dict, bars: dict, funding: dict, name: str, cand: dict, params: dict,
-                  start, end, symbols: list[str] | None = None, universe: list[str] | None = None) -> BacktestResult:
+                  start, end, symbols: list[str] | None = None, universe: list[str] | None = None,
+                  bt: BacktestConfig | None = None) -> BacktestResult:
     universe = universe or cfg["research"]["universe"]
     symbols = symbols or universe
+    tf = cand.get("timeframe", "1d")
+    if tf != "1d":
+        bars = {s: intraday_bars(s, tf) for s in universe}
     sigs = signals_for(cand["strategy"], params, bars, funding, symbols, universe)
-    hold = params.get("max_hold_days")
+    hold = params.get("max_hold_bars") or params.get("max_hold_days")
     sleeves = [Sleeve(f"{name}:{asset(s)}", s, sigs[s], int(hold) if hold else None) for s in symbols]
-    return run_backtest(bars, funding, sleeves, lab_config(cfg), start=start, end=end)
+    return run_backtest(bars, funding, sleeves, bt or lab_config(cfg), start=start, end=_period_end(end, tf),
+                        bar=PANDAS_FREQ[tf])
 
 
 def rolling_windows(start: str, end: str, months: int) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
@@ -167,7 +194,8 @@ def log_row(h: str, cand_name: str, cand: dict, variant: str, period: str, res: 
             "candidate": cand_name, "strategy": cand["strategy"], "mode": cand["mode"], "variant": variant,
             "period": period, "total_return": m["total_return"], "profit_factor": m.get("profit_factor", math.nan),
             "max_drawdown": m["max_drawdown"], "n_trades": m["n_trades"],
-            **return_stats(res.equity["equity"], res.config.initial_equity)}
+            # Sharpe dari ekuitas HARIAN untuk semua timeframe, supaya Deflated Sharpe sebanding
+            **return_stats(res.equity["equity"].resample("1D").last().dropna(), res.config.initial_equity)}
 
 
 # ---------------------------------------------------------------- seleksi

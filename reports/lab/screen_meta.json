@@ -1,17 +1,19 @@
 {
-  "run_at": "2026-10-12 08:27 UTC",
+  "run_at": "2026-10-15 02:28 UTC",
   "screened_now": [
-    "e1_trend_ensemble_ls",
-    "e1_trend_ensemble_lo",
-    "x2_xsmom_2w_ls",
-    "x2_xsmom_2w_lo"
+    "i1_orb_ls",
+    "i1_orb_lo",
+    "i2_intraday_momentum_ls",
+    "i2_intraday_momentum_lo",
+    "i3_intraday_reversion_ls",
+    "i3_intraday_reversion_lo"
   ],
   "period": [
     "2020-01-01",
     "2023-12-31"
   ],
-  "n_trials_total": 100,
-  "n_trials_new": 24,
+  "n_trials_total": 138,
+  "n_trials_new": 38,
   "benchmarks": {
     "buyhold_BTC": {
       "total_return": 4.878928582841153,

@@ -50,6 +50,8 @@ pip install -r requirements.txt
 | Stress test 2017–2019 (incl. 2018 crash) | `python -m src.pre2020` | `reports/pre2020/` |
 | Gold & silver test (2000–now) | `python -m src.metals` | `reports/metals/` |
 | 4-hour vs daily test | `python -m src.h4` | `reports/h4/` |
+| Intraday research: fetch 1h candles | `python -m src.intraday fetch` | `data/*_1h.csv` |
+| Intraday research: optimistic-cost info run | `python -m src.intraday costs` | `reports/lab/intraday_costs_info.csv` |
 | Run all paper robots | `python -m src.paper --all` | `state/*.db` |
 | Dashboard | `streamlit run app.py` | http://localhost:8501 |
 
@@ -67,7 +69,10 @@ pip install -r requirements.txt
 
 Main findings so far: mean reversion (RSI-2) has no edge after costs. Trend following passes on crypto,
 including the 2018 crash and untouched coins. Short sides add almost nothing. Gold/silver trend
-following fails on Binance perpetuals because of funding costs.
+following fails on Binance perpetuals because of funding costs. Intraday strategies on 1h candles
+(opening-range breakout, intraday momentum, intraday mean reversion; flat by 00:00 UTC) all fail
+selection: costs exceed the small gross edge, and even with optimistic maker fees and no slippage none
+reaches PF 1.2.
 
 ## Paper trading
 
@@ -147,6 +152,7 @@ src/metrics.py           performance metrics
 src/run.py, validate.py, report.py   Phase 1 pipeline
 src/lab.py               research lab (screen, holdout, fresh holdout, deflated Sharpe)
 src/pre2020.py, metals.py, h4.py     one-shot extra tests
+src/intraday.py          1h data fetch and cost scenarios for intraday candidates
 src/paper.py             paper-trading robots (daily and 4h)
 src/live.py              live estimate on the unfinished candle
 src/summary.py           plain-language summaries, daily P&L, Telegram text

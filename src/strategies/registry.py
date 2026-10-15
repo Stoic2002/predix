@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from src.strategies import (chandelier, funding_contra, ma_cross, mean_reversion, trend, trend_ensemble,
+from src.strategies import (chandelier, funding_contra, intraday, ma_cross, mean_reversion, trend, trend_ensemble,
                             tsmom, xsmom)
 
 REGISTRY = {
@@ -20,6 +20,9 @@ REGISTRY = {
     "xsmom": xsmom.generate_signals,
     "funding_contra": funding_contra.generate_signals,
     "trend_ensemble": trend_ensemble.generate_signals,
+    "orb": intraday.orb,                       # intraday (candle 1 jam)
+    "intraday_momentum": intraday.intraday_momentum,
+    "intraday_reversion": intraday.intraday_reversion,
 }
 MULTI = {"xsmom"}
 NEEDS_FUNDING = {"funding_contra"}
